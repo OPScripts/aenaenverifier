@@ -57,6 +57,13 @@ async function scrapeAQWGuild(username) {
 
     const pageContent = response.data;
     
+    if (pageContent.includes('Not Found!')) {
+      return {
+        success: false,
+        error: 'Character could not be found, type your real aqw username.'
+      };
+    }
+    
     const guildMatch = pageContent.match(/guild=([^&]+)/);
     const detectedGuild = guildMatch ? guildMatch[1] : 'None';
     
@@ -231,7 +238,7 @@ client.on('interactionCreate', async interaction => {
 
       if (!result.success) {
         await interaction.editReply({
-          content: `❌ **Verification Failed**\n${result.error}. Please check your username and try again.`
+          content: `❌ **Verification Failed**\n${result.error}. Please try again.`
         });
         return;
       }
@@ -264,7 +271,7 @@ client.on('interactionCreate', async interaction => {
 
       if (result.isCruel) {
         await interaction.editReply({
-          content: `✅ **Verification Successful!**\nWelcome, ${username}! You have been verified as a CRUEL guild member and assigned the Soldier role.`
+          content: `✅ **Verification Successful!**\nWelcome, ${username}! You have been verified as a CRUEL guild member.`
         });
         
         try {
@@ -302,7 +309,7 @@ client.on('interactionCreate', async interaction => {
         await sendVerificationLog(guild, interaction.member, username, 'Soldier', result.guild);
       } else {
         await interaction.editReply({
-          content: `✅ **Verification Successfull**\nYou have been assigned the Guest role.\nGuild: ${result.guild}`
+          content: `✅ **Verification Successful**\nYou have been assigned the Guest role.\nGuild: ${result.guild}`
         });
         
         try {
