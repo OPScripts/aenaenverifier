@@ -14,7 +14,7 @@ const GUEST_ROLE_ID = '1347497581009178645';
 
 let verificationLogChannelId = null;
 
-async function sendVerificationLog(guild, user, aqwUsername, roleAdded) {
+async function sendVerificationLog(guild, user, aqwUsername, roleAdded, detectedGuild) {
   if (!verificationLogChannelId) {
     return;
   }
@@ -24,17 +24,18 @@ async function sendVerificationLog(guild, user, aqwUsername, roleAdded) {
     
     const logoAttachment = new AttachmentBuilder('attached_assets/cruel_1759722587306.png', { name: 'cruel_logo.png' });
     
-    const roleMention = roleAdded === 'Cruel Member' ? `<@&${CRUEL_MEMBER_ROLE_ID}>` : `<@&${GUEST_ROLE_ID}>`;
+    const roleMention = roleAdded === 'Soldier' ? `<@&${CRUEL_MEMBER_ROLE_ID}>` : `<@&${GUEST_ROLE_ID}>`;
     
     const logEmbed = new EmbedBuilder()
-      .setColor(roleAdded === 'Cruel Member' ? '#FF0000' : '#808080')
+      .setColor(roleAdded === 'Soldier' ? '#FF0000' : '#808080')
       .setTitle('Verification Complete')
       .setThumbnail('attachment://cruel_logo.png')
       .addFields(
         { name: 'Verified User', value: `${user.user.tag} (${user.id})`, inline: false },
         { name: 'AQW IGN', value: aqwUsername, inline: false },
         { name: 'User', value: `${user}`, inline: false },
-        { name: 'Role Added', value: roleMention, inline: false }
+        { name: 'Role Added', value: roleMention, inline: false },
+        { name: 'Guild', value: detectedGuild, inline: false }
       )
       .setFooter({ text: new Date().toLocaleString() });
 
@@ -54,12 +55,17 @@ async function scrapeAQWGuild(username) {
       }
     });
 
-    const pageContent = response.data.toLowerCase();
-    const isCruel = pageContent.includes('cruel');
+    const pageContent = response.data;
+    
+    const guildMatch = pageContent.match(/guild=([^&]+)/);
+    const detectedGuild = guildMatch ? guildMatch[1] : 'None';
+    
+    const isCruel = detectedGuild.toLowerCase() === 'cruel';
 
     return {
       success: true,
       isCruel: isCruel,
+      guild: detectedGuild,
       username: username
     };
   } catch (error) {
@@ -180,14 +186,14 @@ client.on('interactionCreate', async interaction => {
 
       const modal = new ModalBuilder()
         .setCustomId('verify_modal')
-        .setTitle('Cruel Verification');
+        .setTitle('AQW Verification');
 
       const usernameInput = new TextInputBuilder()
         .setCustomId('aqw_username')
         .setLabel('Enter your AQW Username')
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
-        .setPlaceholder('Your AQW username');
+        .setPlaceholder('Your AQW character name');
 
       const row = new ActionRowBuilder().addComponents(usernameInput);
       modal.addComponents(row);
@@ -206,7 +212,7 @@ client.on('interactionCreate', async interaction => {
 
       if (hasVerificationRole && !isAdmin) {
         await interaction.editReply({
-          content: 'You are already verified.'
+          content: 'You are already verified'
         });
         return;
       }
@@ -218,6 +224,10 @@ client.on('interactionCreate', async interaction => {
       });
 
       const result = await scrapeAQWGuild(username);
+
+      if (result.success) {
+        console.log(`Guild detected for ${username}: ${result.guild}`);
+      }
 
       if (!result.success) {
         await interaction.editReply({
@@ -254,7 +264,7 @@ client.on('interactionCreate', async interaction => {
 
       if (result.isCruel) {
         await interaction.editReply({
-          content: `✅ **Verification Successful!**\nWelcome, ${username}! You have been verified as a CRUEL guild member.`
+          content: `✅ **Verification Successful!**\nWelcome, ${username}! You have been verified as a CRUEL guild member and assigned the Soldier role.`
         });
         
         try {
@@ -284,15 +294,15 @@ client.on('interactionCreate', async interaction => {
         } catch (error) {
           console.error('Error changing nickname:', error);
           await interaction.followUp({
-            content: `⚠️ **Nickname Change Failed**\nI could not change your nickname to "${username}". Please contact Aenaen or an Admin`,
+            content: `⚠️ **Nickname Change Failed**\nI could not change your nickname to "${username}". Please:\n1. Make sure the bot\'s role is positioned above your role in Server Settings → Roles\n2. Manually change your nickname to "${username}"`,
             ephemeral: true
           });
         }
 
-        await sendVerificationLog(guild, interaction.member, username, 'Cruel Member');
+        await sendVerificationLog(guild, interaction.member, username, 'Soldier', result.guild);
       } else {
         await interaction.editReply({
-          content: `✅ **Verification Successful!**\nWelcome, ${username}! You have been verified as a Guest member.`
+          content: `✅ **Verification Successfull**\nYou have been assigned the Guest role.\nGuild: ${result.guild}`
         });
         
         try {
@@ -322,12 +332,12 @@ client.on('interactionCreate', async interaction => {
         } catch (error) {
           console.error('Error changing nickname:', error);
           await interaction.followUp({
-            content: `⚠️ **Nickname Change Failed**\nI could not change your nickname to "${username}". Please contact Aenaen or Administrator.`,
+            content: `⚠️ **Nickname Change Failed**\nI could not change your nickname to "${username}". Please:\n1. Make sure the bot\'s role is positioned above your role in Server Settings → Roles\n2. Manually change your nickname to "${username}"`,
             ephemeral: true
           });
         }
 
-        await sendVerificationLog(guild, interaction.member, username, 'Guest');
+        await sendVerificationLog(guild, interaction.member, username, 'Guest', result.guild);
       }
     }
   }
